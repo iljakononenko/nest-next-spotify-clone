@@ -1,31 +1,80 @@
-import React from 'react';
+import React, {useEffect} from 'react';
 import {Pause, PlayArrow, VolumeUp} from "@mui/icons-material";
 import {Grid, IconButton} from "@mui/material";
 import styles from "../styles/Player.module.scss"
 import {ITrack} from "@/types/track";
 import TrackProgress from "@/components/TrackProgress";
+import {useTypedSelector} from "@/hooks/useTypedSelector";
+import {useActions} from "@/hooks/useActions";
+
+let audio;
 
 const Player = () => {
-    const track: ITrack = { name: "Track 1", artist: "Illia", text: "Text of track", timesListened: 0, imgSrc: "image/f16363a2-a22e-415e-95ac-36149663a628.png", audio: "audio/f7aa0c3e-8769-4e9d-a0d9-ba9c94282b5c.mp3", comments: [], _id: "6453c5c7df068e9e13faa44e" };
+    const {pause, volume, active, duration, currentTime} = useTypedSelector(state => state.player)
+    const {pauseTrack, playTrack, setVolume, setCurrentTime, setDuration, setActiveTrack} = useActions();
 
-    const active = false;
+    useEffect(() => {
+        if (!audio) {
+            audio = new Audio();
+        } else {
+            setAudio();
+            play();
+        }
+    }, [active])
+
+    const setAudio = () => {
+        if (active) {
+            audio.src = 'http://localhost:5000/' + active.audio;
+            audio.volume = volume / 100;
+            audio.onloadedmetadata = () => {
+                setDuration(Math.ceil(audio.duration))
+            }
+            audio.ontimeupdate = () => {
+                setCurrentTime(Math.ceil(audio.currentTime))
+            }
+        }
+    }
+
+    const play = () => {
+        if (pause) {
+            playTrack()
+            audio.play()
+        } else {
+            pauseTrack()
+            audio.pause()
+        }
+    }
+
+    const changeVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
+        audio.volume = Number(e.target.value) / 100;
+        setVolume(Number(e.target.value))
+    }
+
+    const changeCurrentTime = (e: React.ChangeEvent<HTMLInputElement>) => {
+        audio.currentTime = Number(e.target.value);
+        setCurrentTime(Number(e.target.value))
+    }
+
+    if (!active) {
+        return null;
+    }
 
     return (
         <div className={styles.player}>
-            <IconButton onClick={e => e.stopPropagation()} style={{marginRight: 6}}>
+            <IconButton onClick={play} style={{marginRight: 6}}>
                 {
-                    active
-                        ?   <Pause />
-                        :   <PlayArrow />
+                    pause
+                        ?   <PlayArrow />
+                        :   <Pause />
                 }
             </IconButton>
             <Grid container direction={'column'} style={{width: 200, margin: '0 20px'}}>
-                <div>{track.name}</div>
-                <div style={{fontSize: 12, color: 'gray'}}>{track.artist}</div>
+                <div>{active?.name}</div>
+                <div style={{fontSize: 12, color: 'gray'}}>{active?.artist}</div>
             </Grid>
-            <TrackProgress leftValue={0} rightValue={100} onChange={() => {}} />
+            <TrackProgress leftValue={currentTime} rightValue={duration} onChange={e => changeCurrentTime(e)} />
             <VolumeUp style={{marginLeft: 'auto', marginRight: 10}} />
-            <TrackProgress leftValue={0} rightValue={100} onChange={() => {}} />
+            <TrackProgress leftValue={volume} rightValue={100} onChange={e => changeVolume(e)} />
         </div>
     );
 };
